@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>MongoDB Student CRUD</title>
+</head>
+<body>
+  <div class="container">
+    <h1>MongoDB Student CRUD</h1>
+    <p>Add and manage student records stored in MongoDB Atlas.</p>
+
+    <form id="studentForm">
+      <input id="name" placeholder="Student name" required>
+      <input id="course" placeholder="Course name" required>
+      <button type="submit" id="saveButton">Add Student</button>
+      <button type="button" id="cancelButton" class="cancel"
+        hidden>Cancel Edit</button>
+    </form>
+
+    <p id="message" role="status"></p>
+    <h2>Student Records</h2>
+    <div id="students">Loading records...</div>
+  </div>
+
+  <script>
+    const form = document.getElementById("studentForm");
+    const nameInput = document.getElementById("name");
+    const courseInput = document.getElementById("course");
+    const message = document.getElementById("message");
+    const list = document.getElementById("students");
+    const saveButton = document.getElementById("saveButton");
+    const cancelButton = document.getElementById("cancelButton");
+
+    let editingId = null;
+
+    async function request(url, options = {}) {
+      const response = await fetch(url, options);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Request failed");
+      return data;
+    }
+
+    async function loadStudents() {
+      try {
+        const records = await request("/api/students");
+        list.replaceChildren();
+
+        if (records.length === 0) {
+          list.textContent = "No student records yet.";
+          return;
+        }
+
+        records.forEach(student => {
+          const card = document.createElement("div");
+          card.className = "student";
+
+          const title = document.createElement("strong");
+          title.textContent = student.name;
+
+          const course = document.createElement("p");
+          course.textContent = "Course: " + student.course;
+
+          const edit = document.createElement("button");
+          edit.textContent = "Edit";
+          edit.onclick = () => {
+            editingId = student._id;
+            nameInput.value = student.name;
+            courseInput.value = student.course;
+            saveButton.textContent = "Update Student";
+            cancelButton.hidden = false;
+            nameInput.focus();
+          };
+
+          const del = document.createElement("button");
+          del.textContent = "Delete";
+          del.className = "delete";
+          del.onclick = async () => {
+            if (!confirm("Delete " + student.name + "?")) return;
+
+            try {
+              const result = await request("/api/students/" + student._id, {
+                method: "DELETE"
+              });
+              message.textContent = result.message;
+              await loadStudents();
+            } catch (error) {
+              message.textContent = error.message;
+            }
+          };
+
+          card.append(title, course, edit, del);
+          list.append(card);
+        });
+      } catch (error) {
+        list.textContent = error.message;
+      }
+    }
+
+    form.addEventListener("submit", async event => {
+      event.preventDefault();
+
+      const record = {
+        name: nameInput.value.trim(),
+        course: courseInput.value.trim()
+      };
+
+      try {
+        const result = await request(
+          editingId ? "/api/students/" + editingId : "/api/students",
+          {
+            method: editingId ? "PUT" : "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(record)
+          }
+        );
+
+        message.textContent = result.message;
+        form.reset();
+        editingId = null;
+        saveButton.textContent = "Add Student";
+        cancelButton.hidden = true;
+        await loadStudents();
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    });
+
+    cancelButton.onclick = () => {
+      form.reset();
+      editingId = null;
+      saveButton.textContent = "Add Student";
+      cancelButton.hidden = true;
+      message.textContent = "";
+    };
+
+    loadStudents();
+  </script>
+</body>
+</html>

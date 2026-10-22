@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Weather App</title>
+</head>
+<body>
+
+    <h1>Weather Information</h1>
+
+    <form id="weatherForm">
+        <label>Enter City:</label>
+        <input type="text" id="city" placeholder="Enter city name" required>
+        <button type="submit">Get Weather</button>
+    </form>
+
+    <h2>Weather Details</h2>
+    <p id="result"></p>
+
+    <script>
+        document.getElementById("weatherForm").onsubmit = async function(event) {
+            event.preventDefault();
+
+            const city = document.getElementById("city").value;
+
+            try {
+                const response = await fetch(
+                    "/api/weather?city=" + encodeURIComponent(city)
+                );
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Unable to get weather");
+                }
+
+                document.getElementById("result").textContent =
+                    "City: " + data.city +
+                    ", Temperature: " + data.temperature + " °C" +
+                    ", Humidity: " + data.humidity + "%" +
+                    ", Wind Speed: " + data.windSpeed;
+            } catch (error) {
+                document.getElementById("result").textContent = error.message;
+            }
+        };
+    </script>
+
+</body>
+</html>
